@@ -70,6 +70,7 @@ interface IERC20 {
 contract HC_game {
     using UniswapV2Library for uint256;
     using SafeMath128 for uint128;
+    using SafeMath for uint;
 
     IERC20 private token0;
     IERC20 private token6;
@@ -85,15 +86,15 @@ contract HC_game {
     uint64 private WEI_WFC_BTC;
     uint64 private WEI_WFC_HT;
 
-    address private owner = 0xDD63e66d38FFB2e497f31b1c4f2607A07efF7056;
-    address constant private ADMIN_ADDR = 0xDD63e66d38FFB2e497f31b1c4f2607A07efF7056;
-    address private op_addr = 0xDD63e66d38FFB2e497f31b1c4f2607A07efF7056;
+    address private owner = 0x7f1786d0730dDaD6202C16678CE802ABB60F4df5;
+    address constant private ADMIN_ADDR = 0x629c38881c9462f181d10A0B2C8192f240A86815;
+    address private op_addr = 0xb28C7D5BD97aDa20426573baa49A78c062De5920;
 
-    address public WFC_ADDR = 0x69cD0552292B3f0f573fd7F9eDf3A5fc5fd65B87;
-    address public USDT_addr=0xdD68533f24E49566C7564602Ef35ed589E599588;
-    address public WFC_USDT_PAIR_ADDR = 0xCC8aA712848556869bf0Ed7cAb75Cd7b8C4f34af;
-    address public WFC_BTC_PAIR_ADDR=0x92ABe28c63B655347735843117c4cf4Df043460c;
-    address public WFC_HT_PAIR_ADDR=0xb368f991e7E7835dc54Dfc3C866F54A3E207947E;
+    address public WFC_ADDR = 0x781bC268da2e1dD0c8Cb2A2A8B3360BBA530b24e;
+    address public USDT_addr=0xa71EdC38d189767582C38A3145b5873052c3e47a;
+    address public WFC_USDT_PAIR_ADDR = 0xD2d8Ff7E251505fA9e274fDbf7Db55F050D9DDea;
+    address public WFC_BTC_PAIR_ADDR=0x71bb5029d33b36dfa859D82498dd58787D6a530a;
+    address public WFC_HT_PAIR_ADDR=0x43c7C1f0932aA73E6Cf95Eb98A9e3b26c4d9FA83;
 
     event ev_join(address indexed addr, uint64 playid, uint256 _value, uint8 token_type,uint64 ref_id);
     event ev_withdraw_wfc(address indexed addr, uint256 _value);
@@ -121,16 +122,17 @@ contract HC_game {
      mapping (address => uint64) public playerIdx;
      mapping (uint64 => address) public idToAddr;
 
-    uint128  private limit=100000000;
+    uint128  private limit=0;
     uint128  public total_pay=0;
-    uint64   private percent=150;
+    uint64   private percent=0;
     uint64   private WEI_percent=10**18;
-    uint64   private startTime;
-    uint64   private endTime;
-    uint8    private raise_open=1;
+    uint64   private startTime=0;
+    uint64   private endTime=0;
+    uint8    private raise_open=0;
 
     uint128  public bondWfcMin;
     uint128  public bondWfbMax;
+    uint16    public pair_fee=997;
 
     modifier onlyAdmin() {
         require(msg.sender == ADMIN_ADDR);
@@ -185,6 +187,11 @@ contract HC_game {
         idToAddr[playerId] = owner;
     }
 
+    function set_pair_fee (uint16 fee) public onlyOperator{
+        require(fee > 0 && fee < 1000,"Fee error");
+        pair_fee=fee;
+    }
+
     function bond_setting (uint128 _bondWfcMin,uint128 _bondWfbMax) public onlyOperator {
         require(_bondWfcMin<=_bondWfbMax,'price set error');
         bondWfcMin=_bondWfcMin;
@@ -199,7 +206,7 @@ contract HC_game {
 
         uint128 pirce=uint128(wft_to_usdt_price);
         require(pirce==wft_to_usdt_price,"price over uint128");
-        pirce=pirce.mul(WEI_WFC).div(WEI_USDT);
+
         uint128 pay_num;
         if(_type==1){
             require(pirce<=bondWfcMin,'price more than bondWfcMin');
@@ -404,23 +411,40 @@ contract HC_game {
         emit ev_withdraw_admin(ADMIN_ADDR, _token_type, val,"withdraw_admin");
     }
 
-    function getPrice(uint8 _pair_type, address _token0, uint256 _val) public view returns(uint256 price){
+     function getPrice(uint8 _pair_type, address _token0, uint256 _val) public view returns(uint256 price){
         require(_token0 != address(0), "Token0 address is empty");
         require(_pair_type > 0 && _pair_type < 4, "Pair type error");
 
-        uint128 tmp;
         (uint tokenA_reserve,uint tokenB_reserve, ,address tokenAddr0,address tokenAddr1, , ) = getReserves(_pair_type);
 
+        uint64 tokenIn_WET;
+        uint64 tokenOut_WET;
+
+        uint128 tmp;
         if(tokenAddr1 == _token0){
             tmp = uint128(tokenA_reserve);
             tokenA_reserve = tokenB_reserve;
             tokenB_reserve = tmp;
+            tokenIn_WET=10 ** uint64(IERC20(tokenAddr1).decimals());
+            tokenOut_WET=10 ** uint64(IERC20(tokenAddr0).decimals());
         }else{
             require(tokenAddr0 == _token0, "Token0 address error");
+            tokenIn_WET=10 ** uint64(IERC20(tokenAddr0).decimals());
+            tokenOut_WET=10 ** uint64(IERC20(tokenAddr1).decimals());
         }
 
-        price = _val.getAmountOut(tokenA_reserve , tokenB_reserve);
+        price = calculate_price(_val,tokenA_reserve,tokenB_reserve,WEI_WFC,tokenIn_WET,tokenOut_WET,pair_fee);
     }
+
+    function calculate_price(uint amountIn, uint reserveIn, uint reserveOut,uint val_wei,uint in_wei,uint out_wei,uint16 fee) internal pure returns (uint amountOut) {
+        require(amountIn > 0, 'UniswapV2Library: INSUFFICIENT_INPUT_AMOUNT');
+        require(reserveIn > 0 && reserveOut > 0, 'UniswapV2Library: INSUFFICIENT_LIQUIDITY');
+
+        amountOut = amountIn.mul(fee).mul(reserveOut).div(out_wei)/(reserveIn.mul(1000).div(in_wei).add(amountIn.mul(fee).div(val_wei)));
+
+    }
+
+
 
     function getReserves(uint8 _pair_type) public view
     returns (
@@ -452,17 +476,29 @@ contract HC_game {
     }
 
     function setPairAddr(address _newAddr,uint8 _pair_type) public onlyAdmin{
-        require(_pair_type > 0 && _pair_type < 4, "Pair type error");
+        require(_pair_type >=0 && _pair_type < 5, "Pair type error");
         require(_newAddr != address(0), "NewAddr is empty");
         if(_pair_type == 1){
             WFC_USDT_PAIR_ADDR = _newAddr;
             token1 = IUniswapV2Pair(WFC_USDT_PAIR_ADDR);
+            WEI_WFC_USDT =10 ** uint64(token1.decimals());
         }else if(_pair_type == 2){
             WFC_BTC_PAIR_ADDR = _newAddr;
             token2 = IUniswapV2Pair(WFC_BTC_PAIR_ADDR);
+            WEI_WFC_BTC =10 ** uint64(token2.decimals());
         }else if(_pair_type == 3){
             WFC_HT_PAIR_ADDR = _newAddr;
             token3 = IUniswapV2Pair(WFC_HT_PAIR_ADDR);
+            WEI_WFC_HT =10 ** uint64(token3.decimals());
+        }else if(_pair_type == 0){
+            WFC_ADDR=_newAddr;
+            token0 = IERC20(WFC_ADDR);
+            WEI_WFC =10 ** uint64(token0.decimals());
+
+        }else if(_pair_type == 4){
+            USDT_addr=_newAddr;
+            token6 = IERC20(USDT_addr);
+            WEI_USDT =10 ** uint64(token6.decimals());
         }
     }
 
@@ -527,6 +563,10 @@ library SafeMath {
 
     function mul(uint x, uint y) internal pure returns (uint z) {
         require(y == 0 || (z = x * y) / y == x, 'ds-math-mul-overflow');
+    }
+    function div(uint a, uint b) internal pure returns (uint c) {
+        require(b > 0,'ds-math-div-overflow');
+        c = a / b;
     }
 }
 
