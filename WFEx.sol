@@ -125,7 +125,7 @@ contract HC_game {
     uint128  private limit=0;
     uint128  public total_pay=0;
     uint64   private percent=0;
-    uint64   private WEI_percent=10**18;
+    uint64   private WEI_percent=10**8;
     uint64   private startTime=0;
     uint64   private endTime=0;
     uint8    private raise_open=0;
