@@ -132,7 +132,6 @@ contract HC_game {
 
     uint128  public bondWfcMin;
     uint128  public bondWfbMax;
-    uint16    public pair_fee=997;
 
     modifier onlyAdmin() {
         require(msg.sender == ADMIN_ADDR);
@@ -186,10 +185,36 @@ contract HC_game {
         playerIdx[owner] = playerId;
         idToAddr[playerId] = owner;
     }
-
-    function set_pair_fee (uint16 fee) public onlyOperator{
-        require(fee > 0 && fee < 1000,"Fee error");
-        pair_fee=fee;
+    
+    function register(address user_address,address _ref_address) public{
+        require(user_address!=address(0),"user address error");
+        require(playerIdx[user_address] == 0,"user is exit");
+        
+        uint64 _ref_id=playerIdx[_ref_address];
+        if(idToAddr[_ref_id]==address(0)){
+            _ref_id=playerIdx[owner];
+        }
+        
+        Player memory _player = Player({
+        total_wfc : 0,
+        total_wfb :0,
+        total_wfc_usdt_lp : 0,
+        total_wfc_btc_lp : 0,
+        total_wfc_ht_lp : 0,
+        withdraw_wfc : 0,
+        withdraw_wfc_usdt_lp : 0,
+        withdraw_wfc_btc_lp : 0,
+        withdraw_wfc_ht_lp : 0,
+        join_timestamp: uint32(block.timestamp-TIME_BASE),
+        sendUSDT : 0,
+        nowWFC : 0,
+        ref_id:_ref_id
+        });
+        players.push(_player);
+        uint64 playerId = uint64(players.length - 1);
+        playerIdx[user_address] = playerId;
+        idToAddr[playerId] = user_address;
+        emit ev_join(user_address, playerId,0, 0,_ref_id);
     }
 
     function bond_setting (uint128 _bondWfcMin,uint128 _bondWfbMax) public onlyOperator {
@@ -202,7 +227,7 @@ contract HC_game {
         uint64 playerId=playerIdx[msg.sender];
         require(idToAddr[playerId]!=address(0),'There is no user');
         Player storage this_player=players[playerId];
-        uint256 wft_to_usdt_price=getPrice(1,WFC_ADDR,WEI_WFC);
+        uint256 wft_to_usdt_price=getPrice(1,WFC_ADDR);
 
         uint128 pirce=uint128(wft_to_usdt_price);
         require(pirce==wft_to_usdt_price,"price over uint128");
@@ -411,7 +436,7 @@ contract HC_game {
         emit ev_withdraw_admin(ADMIN_ADDR, _token_type, val,"withdraw_admin");
     }
 
-     function getPrice(uint8 _pair_type, address _token0, uint256 _val) public view returns(uint256 price){
+     function getPrice(uint8 _pair_type, address _token0) public view returns(uint256 price){
         require(_token0 != address(0), "Token0 address is empty");
         require(_pair_type > 0 && _pair_type < 4, "Pair type error");
 
@@ -433,15 +458,12 @@ contract HC_game {
             tokenOut_WET=10 ** uint64(IERC20(tokenAddr1).decimals());
         }
 
-        price = calculate_price(_val,tokenA_reserve,tokenB_reserve,WEI_WFC,tokenIn_WET,tokenOut_WET,pair_fee);
+       price = calculate_price(tokenA_reserve,tokenB_reserve,tokenIn_WET,tokenOut_WET,WEI_WFC);
     }
 
-    function calculate_price(uint amountIn, uint reserveIn, uint reserveOut,uint val_wei,uint in_wei,uint out_wei,uint16 fee) internal pure returns (uint amountOut) {
-        require(amountIn > 0, 'UniswapV2Library: INSUFFICIENT_INPUT_AMOUNT');
+    function calculate_price(uint reserveIn, uint reserveOut,uint in_wei,uint out_wei,uint price_wei) internal pure returns (uint amountOut) {
         require(reserveIn > 0 && reserveOut > 0, 'UniswapV2Library: INSUFFICIENT_LIQUIDITY');
-
-        amountOut = amountIn.mul(fee).mul(reserveOut).div(out_wei)/(reserveIn.mul(1000).div(in_wei).add(amountIn.mul(fee).div(val_wei)));
-
+        amountOut =reserveOut.mul(in_wei).mul(price_wei).div(out_wei).div(reserveIn);
     }
 
 
