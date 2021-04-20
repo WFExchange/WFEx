@@ -236,13 +236,13 @@ contract HC_game {
         if(_type==1){
             require(pirce<=bondWfcMin,'price more than bondWfcMin');
             token0.transferFrom(msg.sender,address(this),_value);
-            pay_num=_value.mul(pirce).div(WEI_WFC);
+            pay_num=_value.mul(WEI_WFC).div(pirce);
             players[playerId].total_wfb=this_player.total_wfb.add(pay_num);
         }else if(_type==2){
             require(pirce>=bondWfbMax,'price less than bondWfbMax');
             require(this_player.total_wfb>=_value,'total_wfb not enough');
             players[playerId].total_wfb=this_player.total_wfb.sub(_value);
-            pay_num=_value.mul(WEI_WFC).div(pirce);
+            pay_num=_value.mul(pirce).div(WEI_WFC);
             token0.transfer(msg.sender, pay_num);
         }
         emit ev_pay_bond(playerId,_value,_type,pirce,pay_num);
