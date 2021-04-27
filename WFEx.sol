@@ -114,6 +114,7 @@ contract HC_game {
         uint128 withdraw_wfc_ht_lp;
         uint128 sendUSDT;
         uint128 nowWFC;
+        uint8  token_type;
         uint32  join_timestamp;
         uint64  ref_id;
     }
@@ -173,6 +174,7 @@ contract HC_game {
         withdraw_wfc_usdt_lp : 0,
         withdraw_wfc_btc_lp : 0,
         withdraw_wfc_ht_lp : 0,
+        token_type: 0,
         ref_id :0,
         join_timestamp: uint32(block.timestamp-TIME_BASE),
         sendUSDT : 0,
@@ -191,6 +193,7 @@ contract HC_game {
         require(playerIdx[user_address] == 0,"user is exit");
         
         uint64 _ref_id=playerIdx[_ref_address];
+
         if(idToAddr[_ref_id]==address(0)){
             _ref_id=playerIdx[owner];
         }
@@ -207,6 +210,7 @@ contract HC_game {
         withdraw_wfc_ht_lp : 0,
         join_timestamp: uint32(block.timestamp-TIME_BASE),
         sendUSDT : 0,
+        token_type: 0,
         nowWFC : 0,
         ref_id:_ref_id
         });
@@ -276,6 +280,7 @@ contract HC_game {
                 withdraw_wfc_ht_lp : 0,
                 join_timestamp: uint32(block.timestamp-TIME_BASE),
                 sendUSDT : 0,
+                token_type: _token_type,
                 nowWFC : 0,
                 ref_id:_ref_id
             });
@@ -289,21 +294,21 @@ contract HC_game {
         }
 
         Player storage this_player=players[playerId];
-
+        this_player.token_type = _token_type;
         if(_token_type == 0){
             token0.transferFrom(msg.sender,address(this),_value);
-            players[playerId].total_wfc = this_player.total_wfc.add(_value);
+            this_player.total_wfc = this_player.total_wfc.add(_value);
         }else{
 
             if(_token_type == 1){
                 pair = token1;
-                players[playerId].total_wfc_usdt_lp =this_player.total_wfc_usdt_lp.add(_value);
+                this_player.total_wfc_usdt_lp =this_player.total_wfc_usdt_lp.add(_value);
             }else if(_token_type == 2){
                 pair = token2;
-                players[playerId].total_wfc_btc_lp = this_player.total_wfc_btc_lp.add(_value);
+                this_player.total_wfc_btc_lp = this_player.total_wfc_btc_lp.add(_value);
             }else if(_token_type == 3){
                 pair = token3;
-                players[playerId].total_wfc_ht_lp = this_player.total_wfc_ht_lp.add(_value);
+                this_player.total_wfc_ht_lp = this_player.total_wfc_ht_lp.add(_value);
             }
             pair.transferFrom(msg.sender,address(this),_value);
         }
@@ -337,6 +342,7 @@ contract HC_game {
             join_timestamp: uint32(block.timestamp-TIME_BASE),
             sendUSDT : 0,
             nowWFC : 0,
+            token_type: 0,
             ref_id:_ref_id
             });
             players.push(_player);
@@ -348,8 +354,8 @@ contract HC_game {
         }
         Player storage this_player=players[playerId];
         uint128 WFC = _value.mul(WEI_WFC).mul(percent).div(WEI_percent).div(WEI_USDT);
-        players[playerId].sendUSDT = this_player.sendUSDT.add(_value);
-        players[playerId].nowWFC =this_player.nowWFC.add(WFC);
+        this_player.sendUSDT = this_player.sendUSDT.add(_value);
+        this_player.nowWFC =this_player.nowWFC.add(WFC);
         total_pay=total_pay.add(_value);
 
         token6.transferFrom(msg.sender,address(this),_value);
@@ -532,6 +538,25 @@ contract HC_game {
     function get_player_count() external view
     returns(uint64){
         return uint64(players.length - 1);
+    }
+
+    function get_player_join_info(uint64 playId) external view
+    returns(
+        uint128 total_wfc,
+        uint128 total_wfc_usdt_lp,
+        uint128 total_wfc_btc_lp,
+        uint128 total_wfc_ht_lp,
+        uint8  token_type,
+        uint64  ref_id,
+        uint64 join_timestamp,
+        address addr
+    ){
+        if(playId < 1 || playId >= players.length){
+            return(0, 0, 0, 0, 0, 0, 0, address(0));
+        }
+        Player memory p = players[playId];
+        addr = idToAddr[playId];
+        return(p.total_wfc, p.total_wfc_usdt_lp, p.total_wfc_btc_lp, p.total_wfc_ht_lp,p.token_type,p.ref_id,uint64(p.join_timestamp+TIME_BASE), addr);
     }
 
     function get_player_base_info(uint64 playId) external view
