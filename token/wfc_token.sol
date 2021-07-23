@@ -88,7 +88,7 @@ contract TokenWFC is Erc20Token {
     }
   
     function transfer(address _to, uint256 _value) public override returns (bool success) {
-        require(_to != address(0x0));
+        require(_to != address(0x0) && _from != address(0x0) ,'_from is invalid or _to is invalid');
         uint256 reladAmount;
         if(whiteAddress[_to] == address(0x0)){
             uint256 burnValue = _value.mul(5)/100;
@@ -101,11 +101,12 @@ contract TokenWFC is Erc20Token {
             reladAmount = _value.sub(burnValue);
         }else{
             reladAmount = _value;
-        }
-        require(balance[msg.sender] >= _value && balance[_to] + reladAmount > balance[_to]);
-        balance[msg.sender] = balance[msg.sender].sub(_value);
+        }        
+        require(balance[_from] >= _value && allowed[_from][msg.sender] >= _value);
+        balance[_from] = balance[_from].sub(_value);
         balance[_to] = balance[_to].add(reladAmount);
-        emit Transfer(msg.sender, _to, _value);
+        allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
+        emit Transfer(_from, _to, _value);  
         return true;
     }
 
