@@ -38,12 +38,13 @@ contract TokenWFEC is Erc20Token {
     string public name = "World Finance Coin";
     string public symbol = "WFECD";
     uint8 public decimals = 8;
+    uint  private decim=100000000;
     address public owner;
     mapping (address => uint256) balance;  
     mapping (address => mapping (address => uint256)) allowed;  
     
     constructor(address _owner,uint256 _totalSupply) public {
-        totalSupply = _totalSupply * 100000000;
+        totalSupply = _totalSupply.mul(decim);
         owner = _owner;
         balance[owner] = totalSupply;
     }
@@ -86,12 +87,13 @@ contract TokenWFEC is Erc20Token {
     }
 
     function changeOwner(address _newOwner) public onlyOwner{
+        require(_newOwner != address(0x0));
         owner = _newOwner;
         emit changeOwnerEvt(_newOwner);
     } 
 
     function addTotalSupply(uint256 _amount) public onlyOwner{
-        totalSupply = totalSupply.add(_amount * 100000000);
+        totalSupply = totalSupply.add(_amount.mul(decim));
         balance[owner] = balance[owner].add(_amount);
         emit AddSupply(_amount);
     }

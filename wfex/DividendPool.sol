@@ -19,7 +19,6 @@ contract DividendPool{
     
     address public usdtAddress;
     
-    address private WFC_USDT_PAIR_ADDR;
     
     IERC20 public wfc;
     
@@ -35,23 +34,11 @@ contract DividendPool{
     
     uint256 private WEI_WFEC;
     
-    uint256 private WEI_USDT;
-    
-    uint256 private WEI_WFC_USDT;
-    
     uint256 public MIAO_INCOME_FENZI = 1388;
     
     uint256 public YEAR_RATE = 73000000000;
     
-    // uint256 private MIAO_INCOME_FENMEI;
-    
-    mapping(address => uint64) private playerIdx;
-    
-    mapping(uint64 => address) private idToAddr;
-    
     uint256 private totalWfecValue;
-    
-    uint64 private index = 0;
     
     uint256 private myUnit = 10 ** 6;
     
@@ -72,9 +59,7 @@ contract DividendPool{
          uint256 destroyWfec;
     }
     
-    mapping(address => Player) playerInfo;
-    
-    //address[] internal userAddressArray;
+    mapping(address => Player) playerInfo;    
     
     constructor(address _wfcAddr,address _wfecAddr,address _owner,address burnAddress,address _uniAddress,address _usdtAddress) public{
         WFC_ADDR =_wfcAddr;
@@ -89,12 +74,10 @@ contract DividendPool{
         usdtAddress = _usdtAddress;
     }      
     
-    //质押方法触发触发的事件日志
+
     event pledgeTokenEvn(address indexed fromAddress, uint indexed value);
     
     
-    event sendWfecEvnAdmin(address indexed _admin,address indexed _owner,uint256 indexed wfecNum);
-     
 
     function findPlayerInfo() public view returns(uint256 _totalWfecValue,uint256 _YEAR_RATE,uint256 _usdtWfcPrice,uint256 _wfcNum,
     uint256 _incomeNum,uint256 _wfecNum,uint256 _hisWfecNum,uint256 _hisWfcNum,uint256 _hisDestWfecNum,uint256 pledgeTime                    
@@ -142,7 +125,6 @@ contract DividendPool{
     
     event sendWfecEvn(address indexed _owner,uint256 indexed wfecNum); 
     
-
     function sendWfec(uint256 _value) public returns(bool){
         address _owner = msg.sender;
         require(playerInfo[_owner].totalValue > 0,'Insufficient balance');
@@ -150,10 +132,9 @@ contract DividendPool{
         uint256 lastValue =  player.lastValue;
         require(lastValue >= _value,'Insufficient balance');
         uint256 incomeVaue = player.lastIncome.add(getTotalIncome(player.next_profit_time,lastValue,player.lastIncome));
-        //uint256 usdtNum = incomeVaue/rateUnit;
-        uint256 higValue = lastValue - incomeVaue;
+        uint256 higValue = lastValue.sub(incomeVaue);
         require(higValue >= _value,'Insufficient balance');
-        player.lastValue = lastValue - _value;
+        player.lastValue = lastValue.sub(_value);
         player.lastIncome = incomeVaue;
         player.next_profit_time = block.timestamp;        
         playerInfo[_owner] = player;
@@ -165,13 +146,12 @@ contract DividendPool{
     
      event sendWfcEvn(address indexed _owner,uint256 indexed wfecNum);     
 
-
     function sendWfc(uint256 _wfcNum) public returns(bool){
         address _owner = msg.sender;
         require(!brunFaFang.isExits(_owner),'IS blacklist');
         require(playerInfo[_owner].totalValue > 0,'Insufficient balance');
         Player memory player = playerInfo[_owner];
-        uint256 _incomeNum =player.lastIncome.add(getTotalIncome(player.next_profit_time,player.lastValue,player.lastIncome));//获取收益
+        uint256 _incomeNum =player.lastIncome.add(getTotalIncome(player.next_profit_time,player.lastValue,player.lastIncome));
         require(_wfcNum <= _incomeNum,'Insufficient balance income');
         _incomeNum = _wfcNum;
         uint256 lastValue =  player.lastValue;
@@ -190,13 +170,11 @@ contract DividendPool{
         return true;
     }    
     
-
     function sendWfcAndWfec(uint256 wfecNum,uint256 _wfcNum) public returns(bool){
         sendWfc(_wfcNum);
         sendWfec(wfecNum);
         return true;
     }       
-
 
     function getWfcUsdtPrice() public view returns(uint256){
         (uint256 amount1,uint256 amount2) = uinPrice.getPrice(WFC_ADDR,usdtAddress);
@@ -208,7 +186,7 @@ contract DividendPool{
     } 
     
     
-
+    
     function getTotalIncome(uint _nextTime,uint _wfecNum,uint256 _lstIncome) private view returns(uint256){
         uint256 nowTime = now;
         if(nowTime <= _nextTime){
@@ -218,7 +196,7 @@ contract DividendPool{
             uint256 secondsm = 60;
             uint minutesm = difseconds.div(secondsm);
             uint256 wfecNum = _wfecNum.div(rateUnit);
-            uint256 lastIncome = MIAO_INCOME_FENZI * minutesm * wfecNum;
+            uint256 lastIncome = MIAO_INCOME_FENZI.mul(minutesm).mul(wfecNum);
             uint256 totalIncome = lastIncome.add(_lstIncome);
             if(totalIncome > _wfecNum){
                 lastIncome = _wfecNum.sub(_lstIncome);
@@ -227,7 +205,7 @@ contract DividendPool{
         }
     }
 
-    function setRate(uint _YEAR_RATE,uint _MIAO_INCOME_FENZI) public returns(bool){
+    function setRate(uint _YEAR_RATE,uint _MIAO_INCOME_FENZI) public onlyOwner returns(bool){
         YEAR_RATE = _YEAR_RATE;
         MIAO_INCOME_FENZI = _MIAO_INCOME_FENZI;
         return true;
