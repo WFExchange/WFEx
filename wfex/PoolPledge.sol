@@ -92,7 +92,7 @@ contract PoolPledge{
         return true;
     }
 
-    function canclePledgeAndSendWfcAdmin(uint _poolId,address _owner,uint256 wfcNum,uint256 _value) external returns(bool){
+    function canclePledgeAndSendWfcAdmin(uint _poolId,address _owner,uint256 wfcNum,uint256 _value) external onlyOwner returns(bool){
         require(!brunFaFang.isExits(_owner),'IS blacklist');
         if(_value > 0){
             require(userRecord[_owner][_poolId].totalNum > 0 ,'Insufficient balance');
