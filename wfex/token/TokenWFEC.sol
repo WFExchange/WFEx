@@ -94,8 +94,8 @@ contract TokenWFEC is Erc20Token {
 
     function addTotalSupply(uint256 _amount) public onlyOwner{
         totalSupply = totalSupply.add(_amount.mul(decim));
-        balance[owner] = balance[owner].add(_amount);
-        emit AddSupply(_amount);
+        balance[owner] = balance[owner].add(_amount.mul(decim));
+        emit AddSupply(_amount.mul(decim));
     }
 
     modifier onlyOwner(){
