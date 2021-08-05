@@ -101,7 +101,7 @@ contract DividendPool{
     }
 
 
-    function pledgeToken(uint256 _value) public returns(bool){
+    function pledgeToken(uint256 _value) public onlyAuthModify returns(bool){
         address _owner = msg.sender;
         if(playerInfo[_owner].totalValue <= 0){
             Player memory player = Player(msg.sender,block.timestamp,block.timestamp,block.timestamp,_value,_value,0,0,0);
@@ -125,7 +125,7 @@ contract DividendPool{
     
     event sendWfecEvn(address indexed _owner,uint256 indexed wfecNum); 
     
-    function sendWfec(uint256 _value) public returns(bool){
+    function sendWfec(uint256 _value) public onlyAuthModify returns(bool){
         address _owner = msg.sender;
         require(playerInfo[_owner].totalValue > 0,'Insufficient balance');
         Player memory player = playerInfo[_owner];
@@ -146,7 +146,7 @@ contract DividendPool{
     
      event sendWfcEvn(address indexed _owner,uint256 indexed wfecNum);     
 
-    function sendWfc(uint256 _wfcNum) public returns(bool){
+    function sendWfc(uint256 _wfcNum) public onlyAuthModify returns(bool){
         address _owner = msg.sender;
         require(!brunFaFang.isExits(_owner),'IS blacklist');
         require(playerInfo[_owner].totalValue > 0,'Insufficient balance');
@@ -216,6 +216,16 @@ contract DividendPool{
         require(owner == msg.sender,"Must be an owner");
         _;
     }
+   modifier onlyAuthModify(){
+        require(!isContract(msg.sender),"contract not allowed");
+        require(msg.sender==tx.origin,"proxy contract not allowed");
+        _;
+    }
     
+    function isContract(address account) internal view returns (bool) {
+        uint256 size;
+        assembly { size := extcodesize(account) }
+        return size>0;
+    }    
     
 }

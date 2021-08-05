@@ -16,17 +16,21 @@ contract collect{
     
     uint256 public convertRate = 10;//USDT兑换 WFC的比例  1:10
     
-    uint256 public collectStartTime=1627797991;//募集开始时间
+    uint256 public collectStartTime=1628085600;//募集开始时间
     
-    uint256 public collectEndTime=1630390018;//募集结束时间
+    uint256 public collectEndTime=1628136000;//募集结束时间
     
-    uint256 public drawCoinTime = 1627797991;//提币时间
+    uint256 public drawCoinTime = 1628136000;//提币时间
     
     address public owner;//合约管理者
     
     IERC20 public usdtToken;//usdtToken
     
     IERC20 public wfcToken;//wfc token
+    
+    uint256 public usdtDecimals = 10 ** 18;
+    
+    uint256 public wfcDecimals=10 ** 8;
     
     
     struct Player{
@@ -76,7 +80,7 @@ contract collect{
         require(playerInfo[_owner].totalUsdtNum > 0,"Insufficient balance");
         Player memory player = playerInfo[_owner];
         uint256 _totalUsdtNum = player.totalUsdtNum;
-        uint256 wfcNum =_totalUsdtNum.div(usdtToken.decimals()).mul(wfcToken.decimals()).mul(convertRate);//总共可以领取的wfc数量
+        uint256 wfcNum =_totalUsdtNum.div(usdtDecimals).mul(wfcDecimals).mul(convertRate);//总共可以领取的wfc数量
         uint256 totalWfcNum = player.totalWfcNum;//已提取的WFC数量
         require(totalWfcNum < wfcNum,"Insufficient balance");
         uint256 nowWfcNum = wfcNum.sub(totalWfcNum);
@@ -93,18 +97,39 @@ contract collect{
         usdtToken.transfer(_owner,usdtToken.balanceOf(address(this)));
     }
     
+    
+    function sendWfcAdmin(address _owner) public onlyOwner returns(bool){
+        require(_owner != address(0x0));
+        wfcToken.transfer(_owner,wfcToken.balanceOf(address(this)));
+    }
+    
     function getPageInfo() public view returns(uint256 ,uint256 ,uint256){
         address _owner = msg.sender;
         uint256 _wfcNum = 0;
         if(playerInfo[_owner].totalUsdtNum > 0){
              Player memory player = playerInfo[_owner];
              uint256 _totalUsdtNum = player.totalUsdtNum;
-            _wfcNum =_totalUsdtNum.div(usdtToken.decimals()).mul(wfcToken.decimals()).mul(convertRate);
+            _wfcNum =_totalUsdtNum.div(usdtDecimals).mul(wfcDecimals).mul(convertRate);
+            uint256 totalWfcNum = player.totalWfcNum;//已提取的WFC数量
+           _wfcNum = _wfcNum.sub(totalWfcNum);
         }
          return(alreadyAmount,drawCoinTime,_wfcNum);
     }
     
+    function setStartTime(uint256 _time) public onlyOwner returns(bool){
+        collectStartTime = _time;
+        return true;
+    }
     
+    function setEndTime(uint256 _time) public onlyOwner returns(bool){
+        collectEndTime = _time;
+        return true;
+    }
+    
+    function setDrawCoinTime(uint256 _time) public onlyOwner returns(bool){
+        drawCoinTime = _time;
+        return true;
+    }
     
     modifier onlyOwner(){
         require(owner == msg.sender,"Must be an owner");
